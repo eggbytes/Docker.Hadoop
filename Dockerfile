@@ -37,15 +37,13 @@ RUN apt-get update && apt-get install -y \
   && apt-get -y clean && apt-get -y check
 
 
-# passwordless ssh
+# GLOBAL AND ROOT USER SSH KEY GENERATIONS
 
 RUN rm -rf /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_rsa_key /root/.ssh/id_rsa
 RUN ssh-keygen -t dsa -P '' -f /etc/ssh/ssh_host_dsa_key
 RUN ssh-keygen -t rsa -P '' -f /etc/ssh/ssh_host_rsa_key
 RUN ssh-keygen -t rsa -P '' -f /root/.ssh/id_rsa
 RUN cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
-RUN export HADOOP\_PREFIX=/usr/local/hadoop
-
 
 
 # CREATE DIRECTORIES
@@ -57,8 +55,6 @@ RUN mkdir -p /var/log/supervisor \
  /usr/local/hadoop \
  /var/run/hadoop \
  /var/log/hadoop  
-
-
 
 
 # WGET HADOOP 2.7.1 && JAVA JDK-7U79
@@ -93,9 +89,9 @@ RUN chmod 600 /root/.ssh/config
 RUN chown root:root /root/.ssh/config
 
 # fix the 254 error code
-RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
-RUN echo "UsePAM no" >> /etc/ssh/sshd_config
-RUN echo "Port 2122" >> /etc/ssh/sshd_config
+#RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
+#RUN echo "UsePAM no" >> /etc/ssh/sshd_config
+#RUN echo "Port 2122" >> /etc/ssh/sshd_config
 
 # CHANGE PERMISSIONS
 
@@ -103,7 +99,7 @@ RUN chmod -R 755 /usr/local/hadoop
 RUN chmod -R 755 /usr/java
 
 
-#TAKING OUT THE TRASH
+# TAKING OUT THE TRASH
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # GLOBAL ENVIRONMENT SETTINGS
@@ -127,19 +123,23 @@ ENV PATH /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/hadoop/bin:/usr
 
 
 # workingaround docker.io build error
-RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
-RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
-RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+#RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+#RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
+#RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
 
-#START HADOOP
+# START HADOOP
 RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 RUN mkdir $HADOOP_PREFIX/input
 RUN cp $HADOOP_PREFIX/etc/hadoop/*.xml $HADOOP_HOME/input
 
 
-# HDFS SETUP
+# START SSHD
 RUN /usr/sbin/sshd
+
+# FORMAT HDFS
 RUN $HADOOP_HOME/bin/hdfs namenode -format
+
+# RUNNING HADOOP SPECIFIC COMMANDS TO CONFIGURE HDFS
 RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user/root
 
 RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put etc/hadoop input && $HADOOP_PREFIX/sbin/start-yarn.sh
@@ -147,13 +147,12 @@ RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh 
 
 #### OPEN PORTS ####
 
-# Hadoop ports
-EXPOSE 50010 50020 50070 50075 50090 8030 8031 8032 8033 8040 8042 8088 19888 49707 2122 9000
+# HADOOP SPECIFIC PORTS OPENED TO ACCEPT TRAFFICE 
+EXPOSE 50010 50020 50070 50075 50090 8030 8031 8032 8033 8040 8042 8088 19888 49707 22 9000
 
 
 # START SUPERVISORD
-
-CMD ["/usr/bin/supervisord"]
+CMD /usr/bin/supervisord -c /etc/supervisord.conf
 
 
 
