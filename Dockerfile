@@ -99,9 +99,6 @@ RUN chmod -R 755 /usr/local/hadoop
 RUN chmod -R 755 /usr/java
 
 
-# TAKING OUT THE TRASH
-RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 # GLOBAL ENVIRONMENT SETTINGS
 RUN sed s/HOSTNAME/$HOSTNAME/
 RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
@@ -143,6 +140,10 @@ RUN $HADOOP_HOME/bin/hdfs namenode -format
 RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user/root
 
 RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put etc/hadoop input && $HADOOP_PREFIX/sbin/start-yarn.sh
+
+# CLEANING MY ROOM
+RUN apt-get clean
+RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
 #### OPEN PORTS ####
