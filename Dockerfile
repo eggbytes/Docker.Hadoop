@@ -1,0 +1,160 @@
+#   Leon Justice <leonljustice@gmail.com> from
+#   Hadoop 2.7.1 sudo-distributed node
+#
+#
+#   Ubuntu 14.04.2, Hadoop 2.7.1, SSHD, Supervisord
+#
+#########################################################
+#
+#
+#
+#
+#
+#
+
+FROM ubuntu:14.04.2
+MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
+
+
+# WORKING DIRECTORY FOR APPLIANCE
+WORKDIR /usr/local
+
+
+# APT-GET INSTALL PACKAGES
+
+RUN apt-get update && apt-get install -y \
+  openssh-server \
+  openssh-client \
+  supervisor \
+  passwd \
+  rsync \
+  git \
+  mercurial \
+  subversion \
+  vim \
+  tar \
+  wget \
+  && apt-get -y clean && apt-get -y check
+
+
+# passwordless ssh
+
+RUN rm -rf /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_rsa_key /root/.ssh/id_rsa
+RUN ssh-keygen -t dsa -P '' -f /etc/ssh/ssh_host_dsa_key
+RUN ssh-keygen -t rsa -P '' -f /etc/ssh/ssh_host_rsa_key
+RUN ssh-keygen -t rsa -P '' -f /root/.ssh/id_rsa
+RUN cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
+RUN export HADOOP\_PREFIX=/usr/local/hadoop
+
+
+
+# CREATE DIRECTORIES
+
+RUN mkdir -p /var/log/supervisor \
+ /etc/supervisor/conf.d \
+ /var/run/sshd \
+ /usr/java \
+ /usr/local/hadoop \
+ /var/run/hadoop \
+ /var/log/hadoop  
+
+
+
+
+# WGET HADOOP 2.7.1 && JAVA JDK-7U79
+
+RUN wget -O hadoop.tar.gz  http://mirror.reverse.net/pub/apache/hadoop/common/hadoop-2.7.1/hadoop-2.7.1.tar.gz
+RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" -O java.tar.gz  http://download.oracle.com/otn-pub/java/jdk/7u79-b15/jdk-7u79-linux-x64.tar.gz
+
+
+
+# EXTRACT TAR FILES
+
+RUN  tar -xzvf hadoop.tar.gz -C /usr/local/hadoop/ --strip-components=1 
+RUN  tar -xzvf java.tar.gz -C /usr/java/ --strip-components=1
+
+
+# REMOVE COMPRESSED FILES
+
+RUN rm -rf hadoop.tar.gz
+RUN rm -rf java.tar.gz
+RUN rm -rf /usr/local/hadoop/etc/hadoop/*
+
+
+
+# DEPLOY ENVIRONMENT SPECIFIC CONFIGURATION FILES
+
+COPY /etc/hadoop/* /usr/local/hadoop/etc/hadoop/
+ADD sshd.ini /etc/supervisor/conf.d/sshd.ini
+ADD hadoop.ini /etc/supervisor/conf.d/hadoop.ini
+ADD supervisord.conf /etc/supervisord.conf
+ADD ssh_config /root/.ssh/config
+RUN chmod 600 /root/.ssh/config
+RUN chown root:root /root/.ssh/config
+
+# fix the 254 error code
+RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
+RUN echo "UsePAM no" >> /etc/ssh/sshd_config
+RUN echo "Port 2122" >> /etc/ssh/sshd_config
+
+# CHANGE PERMISSIONS
+
+RUN chmod -R 755 /usr/local/hadoop
+RUN chmod -R 755 /usr/java
+
+
+#TAKING OUT THE TRASH
+RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# GLOBAL ENVIRONMENT SETTINGS
+RUN sed s/HOSTNAME/$HOSTNAME/
+RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+ENV HOSTNAME localhost
+ENV TERM xterm
+ENV SHELL /bin/bash
+ENV PATH /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/hadoop/bin:/usr/local/hadoop/sbin:/usr/local/hadoop:/usr/local/hadoop/libexec:/usr/java/bin \
+ JAVA_HOME /usr/java \
+ HADOOP_HOME /usr/local/hadoop \
+ HADOOP_PREFIX /usr/local/hadoop \
+ HADOOP_COMMON_HOME /usr/local/hadoop \
+ HADOOP_HDFS_HOME /usr/local/hadoop \
+ HADOOP_MAPRED_HOME /usr/local/hadoop \
+ HADOOP_YARN_HOME /usr/local/hadoop \
+ HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop \
+ YARN_CONF_DIR $HADOOP_HOME/etc/hadoop \
+ HADOOP_OPTS $HADOOP_OPTS -Djava.library.path=/usr/local/hadoop/lib \
+ HADOOP_COMMON_LIB_NATIVE_DIR /usr/local/hadoop/lib/native/
+
+
+# workingaround docker.io build error
+RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
+RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+
+#START HADOOP
+RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+RUN mkdir $HADOOP_PREFIX/input
+RUN cp $HADOOP_PREFIX/etc/hadoop/*.xml $HADOOP_HOME/input
+
+
+# HDFS SETUP
+RUN /usr/sbin/sshd
+RUN $HADOOP_HOME/bin/hdfs namenode -format
+RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user && $HADOOP_PREFIX/bin/hdfs dfs -mkdir /user/root
+
+RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put etc/hadoop input && $HADOOP_PREFIX/sbin/start-yarn.sh
+
+
+#### OPEN PORTS ####
+
+# Hadoop ports
+EXPOSE 50010 50020 50070 50075 50090 8030 8031 8032 8033 8040 8042 8088 19888 49707 2122 9000
+
+
+# START SUPERVISORD
+
+CMD ["/usr/bin/supervisord"]
+
+
+
+# END
