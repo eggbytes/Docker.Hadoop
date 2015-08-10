@@ -19,6 +19,7 @@ MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
 # WORKING DIRECTORY FOR APPLIANCE
 WORKDIR /usr/local
 
+USER root
 
 # APT-GET INSTALL PACKAGES
 
@@ -27,6 +28,7 @@ RUN apt-get update && apt-get install -y \
   openssh-client \
   supervisor \
   passwd \
+  ssh \
   rsync \
   git \
   mercurial \
@@ -81,11 +83,11 @@ RUN rm -rf /usr/local/hadoop/etc/hadoop/*
 
 # DEPLOY ENVIRONMENT SPECIFIC CONFIGURATION FILES
 
-ADD /hadoop-config/* /usr/local/hadoop/etc/hadoop/*
+ADD /hadoop-config/ /usr/local/hadoop/etc/hadoop/
 ADD sshd.ini /etc/supervisor/conf.d/sshd.ini
 ADD hadoop.ini /etc/supervisor/conf.d/hadoop.ini
 ADD supervisord.conf /etc/supervisord.conf
-ADD ssh_config /root/.ssh/config
+ADD ssh_config /etc/ssh/ssh_config
 RUN chmod -R 600 /root/.ssh
 RUN chown -R root:root /root/.ssh
 
@@ -106,18 +108,18 @@ RUN sed s/HOSTNAME/localhost/  > /usr/local/hadoop/etc/hadoop/core-site.xml
 ENV HOSTNAME localhost
 ENV TERM xterm
 ENV SHELL /bin/bash
-ENV PATH /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/hadoop/bin:/usr/local/hadoop/sbin:/usr/local/hadoop:/usr/local/hadoop/libexec:/usr/java/bin \
- JAVA_HOME /usr/java \
- HADOOP_HOME /usr/local/hadoop \
- HADOOP_PREFIX /usr/local/hadoop \
- HADOOP_COMMON_HOME /usr/local/hadoop \
- HADOOP_HDFS_HOME /usr/local/hadoop \
- HADOOP_MAPRED_HOME /usr/local/hadoop \
- HADOOP_YARN_HOME /usr/local/hadoop \
- HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop \
- YARN_CONF_DIR $HADOOP_HOME/etc/hadoop \
- HADOOP_OPTS $HADOOP_OPTS -Djava.library.path=/usr/local/hadoop/lib \
- HADOOP_COMMON_LIB_NATIVE_DIR -Djava.library.path=/usr/local/hadoop/lib/native
+ENV PATH /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/hadoop/bin:/usr/local/hadoop/sbin:/usr/local/hadoop:/usr/local/hadoop/libexec:/usr/java/bin
+ENV JAVA_HOME /usr/java
+ENV HADOOP_HOME /usr/local/hadoop
+ENV HADOOP_PREFIX /usr/local/hadoop
+ENV HADOOP_COMMON_HOME /usr/local/hadoop
+ENV HADOOP_HDFS_HOME /usr/local/hadoop
+ENV HADOOP_MAPRED_HOME /usr/local/hadoop
+ENV HADOOP_YARN_HOME /usr/local/hadoop
+ENV HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop
+ENV YARN_CONF_DIR $HADOOP_HOME/etc/hadoop
+ENV HADOOP_OPTS $HADOOP_OPTS -Djava.library.path=/usr/local/hadoop/lib
+ENV HADOOP_COMMON_LIB_NATIVE_DIR -Djava.library.path=/usr/local/hadoop/lib/native
 
 
 # workingaround docker.io build error
