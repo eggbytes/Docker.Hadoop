@@ -54,7 +54,8 @@ RUN mkdir -p /var/log/supervisor \
  /usr/java \
  /usr/local/hadoop \
  /var/run/hadoop \
- /var/log/hadoop  
+ /var/log/hadoop \
+ /usr/local/hadoop/data_store
 
 
 # WGET HADOOP 2.7.1 && JAVA JDK-7U79
@@ -80,28 +81,28 @@ RUN rm -rf /usr/local/hadoop/etc/hadoop/*
 
 # DEPLOY ENVIRONMENT SPECIFIC CONFIGURATION FILES
 
-COPY /etc/hadoop/* /usr/local/hadoop/etc/hadoop/
+ADD /hadoop-config/* /usr/local/hadoop/etc/hadoop/*
 ADD sshd.ini /etc/supervisor/conf.d/sshd.ini
 ADD hadoop.ini /etc/supervisor/conf.d/hadoop.ini
 ADD supervisord.conf /etc/supervisord.conf
 ADD ssh_config /root/.ssh/config
-RUN chmod 600 /root/.ssh/config
-RUN chown root:root /root/.ssh/config
+RUN chmod -R 600 /root/.ssh
+RUN chown -R root:root /root/.ssh
 
 # fix the 254 error code
 #RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
 #RUN echo "UsePAM no" >> /etc/ssh/sshd_config
-#RUN echo "Port 2122" >> /etc/ssh/sshd_config
+#RUN echo "Port 2212" >> /etc/ssh/sshd_config
 
 # CHANGE PERMISSIONS
 
 RUN chmod -R 755 /usr/local/hadoop
 RUN chmod -R 755 /usr/java
-
+RUN chmod -R 777 /usr/local/hadoop/data_store
 
 # GLOBAL ENVIRONMENT SETTINGS
 RUN sed s/HOSTNAME/$HOSTNAME/
-RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+RUN sed s/HOSTNAME/localhost/  > /usr/local/hadoop/etc/hadoop/core-site.xml
 ENV HOSTNAME localhost
 ENV TERM xterm
 ENV SHELL /bin/bash
@@ -116,7 +117,7 @@ ENV PATH /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/hadoop/bin:/usr
  HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop \
  YARN_CONF_DIR $HADOOP_HOME/etc/hadoop \
  HADOOP_OPTS $HADOOP_OPTS -Djava.library.path=/usr/local/hadoop/lib \
- HADOOP_COMMON_LIB_NATIVE_DIR /usr/local/hadoop/lib/native/
+ HADOOP_COMMON_LIB_NATIVE_DIR -Djava.library.path=/usr/local/hadoop/lib/native
 
 
 # workingaround docker.io build error
@@ -132,6 +133,9 @@ RUN cp $HADOOP_PREFIX/etc/hadoop/*.xml $HADOOP_HOME/input
 
 # START SSHD
 RUN /usr/sbin/sshd
+
+# TEST SSH CONNECTION
+RUN ssh localhost
 
 # FORMAT HDFS
 RUN $HADOOP_HOME/bin/hdfs namenode -format
@@ -149,7 +153,7 @@ RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 #### OPEN PORTS ####
 
 # HADOOP SPECIFIC PORTS OPENED TO ACCEPT TRAFFICE 
-EXPOSE 50010 50020 50070 50075 50090 8030 8031 8032 8033 8040 8042 8088 19888 49707 22 9000
+EXPOSE 50010 50020 50070 50075 50090 8030 8031 8032 8033 8040 8042 8088 19888 49707 22 9000 9001
 
 
 # START SUPERVISORD

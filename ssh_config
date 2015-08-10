@@ -1,5 +1,20 @@
+# Site-wide defaults for various options
+
 Host *
-  UserKnownHostsFile /dev/null
-  StrictHostKeyChecking no
-  LogLevel quiet
-  Port 2122
+UserKnownHostsFile /dev/null
+StrictHostKeyChecking no
+LogLevel quiet
+ForwardAgent no
+ForwardX11 no
+RhostsAuthentication no
+RhostsRSAAuthentication no
+RSAAuthentication yes
+PasswordAuthentication no
+FallBackToRsh no
+UseRsh no
+BatchMode no
+CheckHostIP no
+StrictHostKeyChecking no
+Port 2212
+Cipher blowfish
+EscapeChar ~
